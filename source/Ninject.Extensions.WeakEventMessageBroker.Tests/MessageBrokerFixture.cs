@@ -7,8 +7,64 @@ using Xunit;
 
 namespace Ninject.Extensions.WeakEventMessageBroker.Tests
 {
+    public interface IPublisherService { }
+    public class PublisherMockWithMultipleBindings : PublisherMock, IPublisherService { }
+
+    public interface ISubscriberService { }
+    public class SubscriberMockCounter : SubscriberMock, ISubscriberService { }
+
     public class MessageBrokerFixture
     {
+        [Fact]
+        public void SubscriberInstanceConnectedOnlyOncePerChannel()
+        {
+            using (var kernel = new StandardKernel())
+            {
+                var publisher = kernel.Get<PublisherMock>();
+                Assert.NotNull(publisher);
+
+                var sub = kernel.Get<SubscriberMockCounter>();
+                Assert.NotNull(sub);
+
+                kernel.Bind<ISubscriberService>().ToConstant(sub);
+                var subService = kernel.Get<ISubscriberService>();
+                Assert.NotNull(subService);
+
+                Assert.True(publisher.HasListeners);
+                Assert.Null(sub.LastMessage);
+
+                publisher.SendMessage("Hello, world!");
+
+                Assert.Equal(sub.LastMessage, "Hello, world!");
+                Assert.Equal(1, sub.MessageCount);
+            }
+        }
+
+        [Fact]
+        public void PublisherInstanceConnectedOnlyOncePerChannel()
+        {
+            using (var kernel = new StandardKernel())
+            {
+                var publisher = kernel.Get<PublisherMockWithMultipleBindings>();
+                Assert.NotNull(publisher);
+
+                kernel.Bind<IPublisherService>().ToConstant(publisher);
+                var publisherService = kernel.Get<IPublisherService>();
+                Assert.NotNull(publisherService);
+
+                var sub = kernel.Get<SubscriberMockCounter>();
+                Assert.NotNull(sub);
+
+                Assert.True(publisher.HasListeners);
+                Assert.Null(sub.LastMessage);
+
+                publisher.SendMessage("Hello, world!");
+
+                Assert.Equal(sub.LastMessage, "Hello, world!");
+                Assert.Equal(1, sub.MessageCount);
+            }
+        }
+
         [Fact]
         public void OnePublisherOneSubscriber()
         {

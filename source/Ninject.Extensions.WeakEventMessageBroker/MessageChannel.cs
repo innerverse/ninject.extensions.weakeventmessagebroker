@@ -23,6 +23,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Ninject.Infrastructure.Disposal;
 
@@ -80,6 +81,8 @@ namespace Ninject.Extensions.WeakEventMessageBroker
         /// <param name="eventInfo"></param>
         public void AddPublication( object instance, EventInfo eventInfo )
         {
+            if (_publications.Any(p => p.Instance.Target.Equals(instance))) return;
+            
             Delegate method = Delegate.CreateDelegate( eventInfo.EventHandlerType, this, BroadcastMethod );
             eventInfo.AddEventHandler( instance, method );
             lock ( _publications )
@@ -101,6 +104,8 @@ namespace Ninject.Extensions.WeakEventMessageBroker
         /// <param name="method"></param>
         public void AddSubscription( object instance, MethodInfo method )
         {
+            if (_subscriptions.Any(s => s.Target.Target.Equals(instance))) return;
+
             var transportCacheEntry = new TransportCacheEntry( TransportProvider.GetTransport( method ),
                                                                new WeakReference( instance ) );
             _subscriptions.Add( transportCacheEntry );
